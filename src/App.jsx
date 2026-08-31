@@ -4,9 +4,9 @@ import AssetForm from './components/AssetForm'
 import AssetList from './components/AssetList'
 
 const defaultAssets = [
-  { id: 1, type: 'cash', name: 'Fondo indexado', symbol: 'VOO', quantity: 8, purchasePrice: 420, currentPrice: 458, changePercent: '+1.75%' },
-  { id: 2, type: 'crypto', name: 'Bitcoin', symbol: 'BTC', quantity: 0.45, purchasePrice: 24000, currentPrice: 62800, coinId: 'bitcoin', change24h: '+2.41%' },
-  { id: 3, type: 'stocks', name: 'Apple', symbol: 'AAPL', quantity: 14, purchasePrice: 180, currentPrice: 212, changePercent: '+0.92%' }
+  { id: 1, type: 'cash', name: 'Fondo indexado', symbol: 'VOO', quantity: 8, purchasePrice: 420, currentPrice: 458, changePercent: '+1.75%', broker: 'Trade Republic' },
+  { id: 2, type: 'crypto', name: 'Bitcoin', symbol: 'BTC', quantity: 0.45, purchasePrice: 24000, currentPrice: 62800, coinId: 'bitcoin', change24h: '+2.41%', broker: 'Binance' },
+  { id: 3, type: 'stocks', name: 'Apple', symbol: 'AAPL', quantity: 14, purchasePrice: 180, currentPrice: 212, changePercent: '+0.92%', broker: 'Trade Republic' }
 ]
 
 export default function App() {
@@ -30,56 +30,65 @@ export default function App() {
   })
   const [theme, setTheme] = useState(() => localStorage.getItem('equality_theme') || 'light')
 
-  // poll interval (ms) for live prices
-  const POLL_INTERVAL = 10000
-
   useEffect(() => { localStorage.setItem('equality_assets', JSON.stringify(assets)) }, [assets])
   useEffect(() => { localStorage.setItem('equality_history', JSON.stringify(history)) }, [history])
   useEffect(() => { localStorage.setItem('equality_theme', theme); document.documentElement.dataset.theme = theme }, [theme])
 
-  // live price polling for crypto assets (uses ref to avoid restarting interval on every assets change)
   const assetsRef = useRef(assets)
   useEffect(() => { assetsRef.current = assets }, [assets])
 
-  // Obtener precios de acciones (Alpha Vantage) una sola vez al cargar la app
-
+  // Obtener precios con TWELVE DATA (Protección de 1 minuto)
   useEffect(() => {
     async function fetchStocks() {
       const currentAssets = assetsRef.current;
       const stockAssets = currentAssets.filter(a => (a.type === 'stocks' || a.type === 'cash') && a.symbol);
+      
       if (stockAssets.length === 0) return;
 
-      const FINNHUB_KEY = import.meta.env.VITE_FINNHUB_KEY;
-      if (!FINNHUB_KEY) return;
+      // Escudo: Si hace menos de 60 segundos que actualizamos, no llamamos a la API
+      const lastFetch = localStorage.getItem('equality_td_last_fetch');
+      const now = Date.now();
+      if (lastFetch && now - parseInt(lastFetch) < 60000) return;
+
+      const TD_KEY = import.meta.env.VITE_TWELVEDATA_KEY;
+      if (!TD_KEY) return;
 
       let nextAssets = [...currentAssets];
       let hasChanges = false;
+      const symbols = stockAssets.map(a => a.symbol).join(',');
 
-      for (const asset of stockAssets) {
-        try {
-          const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${asset.symbol}&token=${FINNHUB_KEY}`);
-          const data = await res.json();
+      try {
+        const res = await fetch(`https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${TD_KEY}`);
+        const data = await res.json();
 
-          if (data && data.c > 0) {
-            nextAssets = nextAssets.map(a => 
-              a.id === asset.id 
-                ? { 
-                    ...a, 
-                    currentPrice: data.c, 
-                    changePercent: data.dp ? `${data.dp > 0 ? '+' : ''}${data.dp.toFixed(2)}%` : a.changePercent 
-                  } 
-                : a
-            );
+        // Si hay error de límite, cancelamos silenciosamente y usamos lo que ya tenemos
+        if (data.status === "error") return;
+
+        const isMultiple = stockAssets.length > 1;
+
+        nextAssets = nextAssets.map(a => {
+          const quote = isMultiple ? data[a.symbol] : (data.symbol === a.symbol ? data : null);
+          
+          if (quote && quote.close) {
             hasChanges = true;
+            const change = parseFloat(quote.percent_change);
+            return { 
+              ...a, 
+              currentPrice: parseFloat(quote.close), 
+              changePercent: `${change > 0 ? '+' : ''}${change.toFixed(2)}%` 
+            };
           }
-          // Pequeña pausa de medio segundo para no saturar
-          await new Promise(resolve => setTimeout(resolve, 500));
-        } catch (e) {
-          console.error(`Error conectando con Finnhub:`, e);
-        }
+          return a;
+        });
+
+        localStorage.setItem('equality_td_last_fetch', now.toString());
+      } catch (e) {
+        console.error("Error conectando con Twelve Data:", e);
       }
+
       if (hasChanges) setAssets(nextAssets);
     }
+
     fetchStocks();
   }, []);
 
@@ -114,16 +123,6 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {/*
-      <header className="topbar">
-        <h1>Equality</h1>
-        <div className="actions">
-          <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')} className="rounded-md border px-3 py-2 text-sm" style={{backgroundColor:'var(--card)'}}>
-            Modo {theme === 'light' ? 'Oscuro' : 'Claro'}
-          </button>
-        </div>
-      </header>
-      */}
       <main className="container">
         <section className="panel">
           <Dashboard assets={assets} history={history} theme={theme} />        

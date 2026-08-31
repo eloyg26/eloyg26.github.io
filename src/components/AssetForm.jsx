@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { getBrokerIcon } from '../utils/brokers'
 
-const empty = { name: '', symbol: '', type: 'cash', quantity: '', purchasePrice: '', currentPrice: '' }
+const BROKERS = [
+  'Trade Republic', 'Interactive Brokers', 'Binance', 'Coinbase', 
+  'Revolut', 'eToro', 'Scalable Capital', 'DEGIRO', 'MyInvestor', 'Otro'
+]
+
+const empty = { name: '', symbol: '', type: 'cash', quantity: '', purchasePrice: '', currentPrice: '', broker: 'Trade Republic' }
 
 export default function AssetForm({ onAdd }) {
+  const [isOpen, setIsOpen] = useState(false)
   const [form, setForm] = useState(empty)
   const [searchQuery, setSearchQuery] = useState('')
   const [suggests, setSuggests] = useState([])
@@ -13,8 +20,7 @@ export default function AssetForm({ onAdd }) {
   useEffect(() => () => { mounted.current = false }, [])
 
   function onChange(e) {
-    const { name, value } = e.target
-    setForm(f => ({ ...f, [name]: value }))
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }))
   }
 
   function handleTypeChange(e) {
@@ -25,10 +31,17 @@ export default function AssetForm({ onAdd }) {
     setApiError('')
   }
 
+  function closeModal() {
+    setIsOpen(false)
+    setForm(empty)
+    setSearchQuery('')
+    setSuggests([])
+    setApiError('')
+  }
+
   // Búsqueda en APIs
   useEffect(() => {
     const term = searchQuery.trim().toLowerCase()
-    
     if (!term || term.length < 2) {
       setSuggests([])
       setLoading(false)
@@ -42,7 +55,6 @@ export default function AssetForm({ onAdd }) {
     const timer = setTimeout(async () => {
       if (!mounted.current) return
 
-      // Búsqueda Cripto (CoinGecko)
       if (form.type === 'crypto') {
         try {
           const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(term)}`)
@@ -54,26 +66,18 @@ export default function AssetForm({ onAdd }) {
           if (mounted.current) setLoading(false)
         }
       } 
-      // Búsqueda Acciones/Fondos (FINNHUB)
       else if (form.type === 'cash' || form.type === 'stocks') {
         try {
-          const key = import.meta.env.VITE_FINNHUB_KEY;
-          if (!key) {
-            if (mounted.current) setApiError('Falta VITE_FINNHUB_KEY en tu .env');
-            setLoading(false);
-            return;
-          }
-
-          const res = await fetch(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(term)}&token=${key}`)
+          // Buscador público de Twelve Data (No gasta créditos)
+          const res = await fetch(`https://api.twelvedata.com/symbol_search?symbol=${encodeURIComponent(term)}`)
           const data = await res.json()
 
-          // Finnhub devuelve los resultados en un array llamado 'result'
-          if (data.result && data.result.length > 0) {
+          if (data.data && data.data.length > 0) {
             if (mounted.current) {
-              setSuggests(data.result.map(item => ({
+              setSuggests(data.data.map(item => ({
                 symbol: item.symbol,
-                name: item.description,
-                region: item.type
+                name: item.instrument_name,
+                region: item.exchange
               })));
             }
           } else {
@@ -81,7 +85,7 @@ export default function AssetForm({ onAdd }) {
             setSuggests([]);
           }
         } catch (e) {
-          if (mounted.current) setApiError('Error de red al conectar con Finnhub.')
+          if (mounted.current) setApiError('Error de red al conectar con Twelve Data.')
         } finally {
           if (mounted.current) setLoading(false)
         }
@@ -104,7 +108,6 @@ export default function AssetForm({ onAdd }) {
     } catch (e) { console.error(e) }
   }
 
-  // Búsqueda del precio individual con FINNHUB
   async function pickStockOrFund(match) {
     const symbol = match.symbol
     const name = match.name
@@ -113,20 +116,19 @@ export default function AssetForm({ onAdd }) {
     setSuggests([])
     
     try {
-      const key = import.meta.env.VITE_FINNHUB_KEY
+      const key = import.meta.env.VITE_TWELVEDATA_KEY
       if (!key) {
-        setApiError('Falta tu VITE_FINNHUB_KEY en el .env');
+        setApiError('Falta tu VITE_TWELVEDATA_KEY en el .env');
         return;
       }
       
-      const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`)
+      const res = await fetch(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${key}`)
       const data = await res.json()
 
-      // Finnhub devuelve el precio actual en la propiedad 'c'
-      if (data && data.c) {
+      if (data && data.close) {
         setForm(f => ({
           ...f,
-          currentPrice: Number(data.c || 0)
+          currentPrice: Number(data.close || 0)
         }))
       }
     } catch (e) { console.error("Error obteniendo precio:", e) }
@@ -142,132 +144,110 @@ export default function AssetForm({ onAdd }) {
       purchasePrice: Number(form.purchasePrice || 0),
       currentPrice: Number(form.currentPrice || 0)
     })
-    setForm(empty)
-    setSearchQuery('')
-    setSuggests([])
+    closeModal()
   }
 
   return (
-    <div className="rounded-xl border bg-card text-card-foreground p-6 space-y-4">
-      <h3 className="text-lg font-semibold tracking-tight">Agregar activo</h3>
-      
-      <form onSubmit={submit} className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-muted-foreground">Tipo de activo</label>
-          <select 
-            name="type" 
-            value={form.type} 
-            onChange={handleTypeChange} 
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="cash">Efectivo / Fondos ETFs</option>
-            <option value="stocks">Acciones</option>
-            <option value="crypto">Criptomonedas</option>
-          </select>
-        </div>
+    <>
+      <button 
+        onClick={() => setIsOpen(true)}
+        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium py-3 px-4 rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        <span>Añadir nueva inversión</span>
+      </button>
 
-        <div className="space-y-2 relative">
-          <label className="text-sm font-medium text-muted-foreground">Buscar Activo</label>
-          <input 
-            type="text"
-            placeholder={form.type === 'crypto' ? "Ej: Bitcoin, ETH..." : "Ej: VOO, Apple..."}
-            value={searchQuery} 
-            onChange={e => setSearchQuery(e.target.value)} 
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card text-card-foreground border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 relative max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-lg font-bold tracking-tight">Agregar activo</h3>
+              <button onClick={closeModal} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition-colors">✕</button>
+            </div>
+            
+            <form onSubmit={submit} className="space-y-4 pt-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo de activo</label>
+                <select name="type" value={form.type} onChange={handleTypeChange} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none">
+                  <option value="cash">Efectivo / Fondos ETFs</option>
+                  <option value="stocks">Acciones</option>
+                  <option value="crypto">Criptomonedas</option>
+                </select>
+              </div>
 
-          {loading && <div className="text-xs text-muted-foreground pt-1">Buscando...</div>}
-          
-          {apiError && <div className="text-xs text-red-500 pt-1 font-medium">{apiError}</div>}
+              <div className="space-y-1.5 relative">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Buscar Activo</label>
+                <input type="text" placeholder={form.type === 'crypto' ? "Ej: Bitcoin..." : "Ej: VOO, Apple..."} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none" />
 
-          {suggests.length > 0 && (
-            <ul className="absolute z-10 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-56 overflow-auto py-1">
-              {form.type === 'crypto' ? (
-                suggests.slice(0, 6).map(c => (
-                  <li 
-                    key={c.id} 
-                    onClick={() => pickCoin(c)} 
-                    className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent cursor-pointer"
-                  >
-                    {c.thumb && <img src={c.thumb} alt="" className="w-5 h-5 rounded-full" />}
-                    <div>
-                      <div className="font-medium">{c.name}</div>
-                      <div className="text-xs text-muted-foreground">{c.symbol?.toUpperCase()}</div>
-                    </div>
-                  </li>
-                ))
-              ) : (
-                suggests.slice(0, 6).map(c => (
-                  <li 
-                    key={c.symbol} 
-                    onClick={() => pickStockOrFund(c)} 
-                    className="px-3 py-2 text-sm hover:bg-accent cursor-pointer"
-                  >
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-xs text-muted-foreground">{c.symbol} {c.region ? `• ${c.region}` : ''}</div>
-                  </li>
-                ))
-              )}
-            </ul>
-          )}
-        </div>
+                {loading && <div className="text-xs text-muted-foreground pt-1">Buscando...</div>}
+                {apiError && <div className="text-xs text-red-500 pt-1 font-medium">{apiError}</div>}
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-muted-foreground">Nombre</label>
-          <input 
-            name="name" 
-            value={form.name} 
-            readOnly
-            className="w-full rounded-md border border-input bg-muted px-3 py-2 text-sm opacity-70 cursor-not-allowed"
-            placeholder="Se autocompleta al buscar..."
-          />
-        </div>
+                {suggests.length > 0 && (
+                  <ul className="absolute z-20 w-full mt-1 bg-background border border-border rounded-xl shadow-xl max-h-52 overflow-auto py-1">
+                    {form.type === 'crypto' ? (
+                      suggests.slice(0, 6).map(c => (
+                        <li key={c.id} onClick={() => pickCoin(c)} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent cursor-pointer">
+                          {c.thumb && <img src={c.thumb} alt="" className="w-5 h-5 rounded-full" />}
+                          <div>
+                            <div className="font-medium">{c.name}</div>
+                            <div className="text-xs text-muted-foreground">{c.symbol?.toUpperCase()}</div>
+                          </div>
+                        </li>
+                      ))
+                    ) : (
+                      suggests.slice(0, 6).map(c => (
+                        <li key={c.symbol} onClick={() => pickStockOrFund(c)} className="px-3 py-2 text-sm hover:bg-accent cursor-pointer">
+                          <div className="font-medium">{c.name}</div>
+                          <div className="text-xs text-muted-foreground">{c.symbol} {c.region ? `• ${c.region}` : ''}</div>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+              </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Cantidad</label>
-            <input 
-              name="quantity" 
-              type="number" 
-              step="any"
-              value={form.quantity} 
-              onChange={onChange} 
-              required
-              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">P. Compra</label>
-            <input 
-              name="purchasePrice" 
-              type="number" 
-              step="any"
-              value={form.purchasePrice} 
-              onChange={onChange} 
-              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">P. Actual</label>
-            <input 
-              name="currentPrice" 
-              type="number" 
-              step="any"
-              value={form.currentPrice} 
-              onChange={onChange} 
-              className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-            />
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Activo seleccionado</label>
+                <input name="name" value={form.name} readOnly className="w-full rounded-xl border border-input bg-muted px-3 py-2 text-sm font-medium opacity-80 cursor-not-allowed" placeholder="Selecciona un activo arriba..." />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Broker / Plataforma</label>
+                <div className="relative flex items-center">
+                  {getBrokerIcon(form.broker) && (
+                    <img src={getBrokerIcon(form.broker)} alt="" className="absolute left-3 w-4 h-4 rounded-full pointer-events-none" onError={(e) => { e.target.style.display = 'none' }} />
+                  )}
+                  <select name="broker" value={form.broker} onChange={onChange} className={`w-full rounded-xl border border-input bg-background py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none ${getBrokerIcon(form.broker) ? 'pl-9 pr-3' : 'px-3'}`}>
+                    {BROKERS.map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground font-medium">Cantidad</label>
+                  <input name="quantity" type="number" step="any" value={form.quantity} onChange={onChange} required placeholder="0" className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 text-sm font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground font-medium">P. Compra</label>
+                  <input name="purchasePrice" type="number" step="any" value={form.purchasePrice} onChange={onChange} placeholder="0.00" className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 text-sm font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground font-medium">P. Actual</label>
+                  <input name="currentPrice" type="number" step="any" value={form.currentPrice} onChange={onChange} placeholder="0.00" className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 text-sm font-mono" />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-3">
+                <button type="button" onClick={closeModal} className="w-1/2 border border-input hover:bg-accent rounded-xl py-2.5 text-sm font-medium transition-colors">Cancelar</button>
+                <button type="submit" disabled={!form.name} className="w-1/2 bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/90 rounded-xl py-2.5 text-sm font-medium transition-colors">Guardar</button>
+              </div>
+            </form>
           </div>
         </div>
-
-        <button 
-          type="submit" 
-          disabled={!form.name}
-          className="w-full bg-primary text-primary-foreground disabled:opacity-50 hover:bg-primary/90 rounded-md py-2 text-sm font-medium transition-colors"
-        >
-          Añadir Activo
-        </button>
-      </form>
-    </div>
+      )}
+    </>
   )
 }

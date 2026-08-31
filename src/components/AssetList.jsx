@@ -1,4 +1,5 @@
 import React from 'react'
+import { getBrokerIcon } from '../utils/brokers' // Ajusta la ruta según tu estructura
 
 export default function AssetList({ assets, onUpdate, onDelete }) {
   if (assets.length === 0) {
@@ -19,6 +20,7 @@ export default function AssetList({ assets, onUpdate, onDelete }) {
       <ul className="divide-y divide-border">
         {assets.map(a => {
           const totalValue = Number(a.quantity || 0) * Number(a.currentPrice || 0)
+          const brokerLogo = getBrokerIcon(a.broker)
 
           return (
             <li key={a.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
@@ -31,7 +33,7 @@ export default function AssetList({ assets, onUpdate, onDelete }) {
                   </div>
                 )}
                 
-                <div>
+                <div className="space-y-1">
                   <div className="font-medium flex items-center gap-2 text-sm">
                     {a.name}
                     {a.symbol && (
@@ -39,7 +41,23 @@ export default function AssetList({ assets, onUpdate, onDelete }) {
                         {a.symbol.toUpperCase()}
                       </span>
                     )}
+
+                    {/* Badge con ícono del Broker */}
+                    {a.broker && (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted/80 text-muted-foreground border border-border/50">
+                        {brokerLogo && (
+                          <img 
+                            src={brokerLogo} 
+                            alt={a.broker} 
+                            className="w-3 h-3 rounded-full object-contain"
+                            onError={(e) => { e.target.style.display = 'none' }}
+                          />
+                        )}
+                        {a.broker}
+                      </span>
+                    )}
                   </div>
+
                   <div className="text-xs text-muted-foreground flex items-center gap-2">
                     <span>{a.quantity} × ${Number(a.currentPrice).toLocaleString()}</span>
                     {a.changePercent && (
