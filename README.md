@@ -1,4 +1,4 @@
-# Equality — Finanzas personales (scaffold)
+# Privault — Finanzas personales (scaffold)
 
 Proyecto base para un dashboard de finanzas personales con React + Vite.
 

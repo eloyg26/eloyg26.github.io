@@ -1,5 +1,5 @@
 import React from 'react'
-import { getBrokerIcon } from '../utils/brokers' // Ajusta la ruta según tu estructura
+import { getBrokerIcon } from '../utils/brokers'
 
 export default function AssetList({ assets, onUpdate, onDelete }) {
   if (assets.length === 0) {
@@ -22,16 +22,30 @@ export default function AssetList({ assets, onUpdate, onDelete }) {
           const totalValue = Number(a.quantity || 0) * Number(a.currentPrice || 0)
           const brokerLogo = getBrokerIcon(a.broker)
 
+          // Usa la imagen de CoinGecko si existe, o el CDN público de FMP para acciones/ETFs
+          const assetLogo = a.image || (a.symbol ? `https://financialmodelingprep.com/image-stock/${a.symbol}.png` : null)
+
           return (
             <li key={a.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
               <div className="flex items-center gap-3">
-                {a.image ? (
-                  <img src={a.image} alt="" className="w-8 h-8 rounded-full" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold uppercase">
+                
+                {/* Ícono del Activo (Sistema de capas con Fallback) */}
+                <div className="relative w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-bold uppercase overflow-hidden border border-border shrink-0 shadow-sm">
+                  {/* Capa inferior: Iniciales de respaldo */}
+                  <span className="absolute z-0 text-muted-foreground">
                     {a.symbol ? a.symbol.slice(0, 2) : a.name.slice(0, 2)}
-                  </div>
-                )}
+                  </span>
+                  
+                  {/* Capa superior: Logotipo */}
+                  {assetLogo && (
+                    <img 
+                      src={assetLogo}
+                      alt={a.name}
+                      className="absolute z-10 object-sclale-down bg-white"
+                      onError={(e) => { e.target.style.display = 'none' }}
+                    />
+                  )}
+                </div>
                 
                 <div className="space-y-1">
                   <div className="font-medium flex items-center gap-2 text-sm">

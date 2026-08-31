@@ -17,7 +17,7 @@ function AppContent({ assets, history, addAsset, updateAsset, removeAsset }) {
       <main className="container relative min-h-screen pt-12 bg-background text-foreground transition-colors duration-300">
           <button 
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
-            className="absolute top-4 right-4 rounded-md border border-border bg-card text-card-foreground p-2 text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center shadow-sm"
+            className="absolute bottom-4 left-4 rounded-md border border-border bg-card text-card-foreground p-2 text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center shadow-sm"
             aria-label="Alternar tema"
           >
             {theme === 'light' ? (
