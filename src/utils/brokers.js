@@ -7,7 +7,9 @@ export const BROKER_DOMAINS = {
   'eToro': 'etoro.com',
   'Scalable Capital': 'scalable.capital',
   'DEGIRO': 'degiro.com',
-  'MyInvestor': 'myinvestor.es'
+  'MyInvestor': 'myinvestor.es',
+  'XTB': 'xtb.com',
+  'TradingView': 'es.tradingview.com'
 }
 
 export function getBrokerIcon(brokerName) {

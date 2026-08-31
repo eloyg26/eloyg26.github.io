@@ -3,7 +3,7 @@ import { getBrokerIcon } from '../utils/brokers'
 
 const BROKERS = [
   'Trade Republic', 'Interactive Brokers', 'Binance', 'Coinbase', 
-  'Revolut', 'eToro', 'Scalable Capital', 'DEGIRO', 'MyInvestor', 'Otro'
+  'Revolut', 'eToro', 'Scalable Capital', 'DEGIRO', 'MyInvestor', 'XTB', 'TradingView', 'Otro'
 ]
 
 const empty = { name: '', symbol: '', type: 'cash', quantity: '', purchasePrice: '', currentPrice: '', broker: 'Trade Republic' }
