@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { RadialBarChart, RadialBar, PolarAngleAxis, Label } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card'
 import Badge from './ui/Badge'
 import Button from './ui/Button'
@@ -89,6 +90,30 @@ export default function Dashboard({ assets, history, theme }) {
   const [assetTrend, setAssetTrend] = useState({})
   const [selectedAsset, setSelectedAsset] = useState(null)
   const [selectedDetail, setSelectedDetail] = useState(null)
+  const [donutActive, setDonutActive] = useState('stocks')
+
+  const donutSegments = [
+    { key: 'stocks', label: 'Acciones', value: stocksPercent, color: '#8b5cf6' },
+    { key: 'crypto', label: 'Cripto', value: cryptoPercent, color: '#f59e0b' },
+    { key: 'cash', label: 'Cash', value: cashPercent, color: '#34d399' },
+  ].filter(item => item.value > 0)
+
+  const allocationChartData = [{
+    name: 'portfolio',
+    stocks: Number(stocksPercent.toFixed(1)),
+    crypto: Number(cryptoPercent.toFixed(1)),
+    cash: Number(cashPercent.toFixed(1)),
+  }]
+
+  const allocationChartColors = {
+    stocks: 'var(--chart-1, #8b5cf6)',
+    crypto: 'var(--chart-2, #f59e0b)',
+    cash: 'var(--chart-3, #34d399)',
+  }
+
+  const totalPortfolioShare = allocationChartData[0]
+    ? allocationChartData[0].stocks + allocationChartData[0].crypto + allocationChartData[0].cash
+    : 0
 
   function buildFallbackTrend(asset, length = 12, volatilityBoost = 1) {
     const base = Number(asset.currentPrice || 0)
@@ -414,28 +439,64 @@ export default function Dashboard({ assets, history, theme }) {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold tracking-tight text-sm">Distribución de Cartera</h3>
           </div>
-          
           {assets.length > 0 ? (
-            <div className="space-y-4">
-              <div className="h-2 w-full rounded-full flex overflow-hidden bg-muted">
-                <div style={{ width: `${stocksPercent}%` }} className="bg-indigo-500 transition-all duration-500" title="Acciones" />
-                <div style={{ width: `${cryptoPercent}%` }} className="bg-amber-500 transition-all duration-500" title="Cripto" />
-                <div style={{ width: `${cashPercent}%` }} className="bg-emerald-500 transition-all duration-500" title="Efectivo" />
-              </div>
-              
-              <div className="flex flex-wrap gap-4 text-xs font-medium">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                  <span className="text-muted-foreground">Acciones ({stocksPercent.toFixed(1)}%)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span className="text-muted-foreground">Cripto ({cryptoPercent.toFixed(1)}%)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  <span className="text-muted-foreground">Fondos/Cash ({cashPercent.toFixed(1)}%)</span>
-                </div>
+            <div className="flex justify-center">
+              <div className="h-[120px] w-[220px]">
+                <RadialBarChart
+                  data={allocationChartData}
+                  width={220}
+                  height={220}
+                  innerRadius={80}
+                  outerRadius={110}
+                  endAngle={180}
+                  barSize={18}
+                >
+                  <RadialBar
+                    dataKey="cash"
+                    stackId="a"
+                    cornerRadius={5}
+                    fill={allocationChartColors.cash}
+                    className="stroke-transparent stroke-2"
+                    opacity={donutActive === 'cash' ? 1 : 0.7}
+                    onMouseEnter={() => setDonutActive('cash')}
+                  />
+                  <RadialBar
+                    dataKey="crypto"
+                    stackId="a"
+                    cornerRadius={5}
+                    fill={allocationChartColors.crypto}
+                    className="stroke-transparent stroke-2"
+                    opacity={donutActive === 'crypto' ? 1 : 0.7}
+                    onMouseEnter={() => setDonutActive('crypto')}
+                  />
+                  <RadialBar
+                    dataKey="stocks"
+                    stackId="a"
+                    cornerRadius={5}
+                    fill={allocationChartColors.stocks}
+                    className="stroke-transparent stroke-2"
+                    opacity={donutActive === 'stocks' ? 1 : 0.7}
+                    onMouseEnter={() => setDonutActive('stocks')}
+                  />
+                  <Label
+                    content={({ viewBox }) => {
+                      if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                        const active = donutSegments.find(item => item.key === donutActive) || donutSegments[0]
+                        return (
+                          <text x={viewBox.cx} y={(viewBox.cy || 0) - 8} textAnchor="middle">
+                            <tspan x={viewBox.cx} y={(viewBox.cy || 0) - 16} className="fill-foreground text-2xl font-bold">
+                              {Number(active?.value || 0).toFixed(1)}%
+                            </tspan>
+                            <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 8} className="fill-muted-foreground text-[10px] uppercase tracking-[0.18em]">
+                              {active?.label || 'Acciones'}
+                            </tspan>
+                          </text>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                </RadialBarChart>
               </div>
             </div>
           ) : (
