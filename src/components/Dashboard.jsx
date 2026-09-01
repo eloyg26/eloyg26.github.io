@@ -378,27 +378,27 @@ export default function Dashboard({ assets, history, theme }) {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-border/60 bg-card/60">
+        <Card className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
           <CardContent className="p-5">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Capital Invertido</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Capital Invertido</p>
             <p className="mt-3 text-2xl font-bold tracking-tight font-mono">
               ${totalInvested.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 bg-card/60">
+        <Card className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
           <CardContent className="p-5">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Acciones y ETFs</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Acciones y ETFs</p>
             <p className="mt-3 text-2xl font-bold tracking-tight font-mono">
               ${(stocksTotal + cashTotal).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 bg-card/60">
+        <Card className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
           <CardContent className="p-5">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Criptoactivos</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Criptoactivos</p>
             <p className="mt-3 text-2xl font-bold tracking-tight font-mono">
               ${cryptoTotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
             </p>
@@ -410,7 +410,7 @@ export default function Dashboard({ assets, history, theme }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
         {/* Distribución de Cartera */}
-        <div className="md:col-span-2 p-6 rounded-2xl border bg-card/50 backdrop-blur space-y-5">
+        <div className="md:col-span-2 rounded-2xl border border-border/70 bg-card/80 p-6 shadow-sm backdrop-blur space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold tracking-tight text-sm">Distribución de Cartera</h3>
           </div>
@@ -444,7 +444,7 @@ export default function Dashboard({ assets, history, theme }) {
         </div>
 
         {/* Top Performer */}
-        <Card className="border-border/60 bg-card/60">
+        <Card className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Mejor Rendimiento</CardTitle>
           </CardHeader>
@@ -488,7 +488,7 @@ export default function Dashboard({ assets, history, theme }) {
           <Badge variant="secondary">{assets.length} activos</Badge>
         </div>
 
-        <Card className="overflow-hidden border-border/60">
+        <Card className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
           <div className="divide-y divide-border/60">
           {sortedAssets.length > 0 ? (
             sortedAssets.map(a => {
