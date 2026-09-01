@@ -1,7 +1,17 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card'
 import Badge from './ui/Badge'
+import Button from './ui/Button'
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 import { getBrokerIcon } from '../utils/brokers'
+
+const RANGE_OPTIONS = [
+  { key: 'day', label: 'Día' },
+  { key: 'week', label: 'Semana' },
+  { key: 'month', label: 'Mes' },
+  { key: 'year', label: 'Año' },
+]
 
 export default function Dashboard({ assets, history, theme }) {
   // Cálculos de la cartera
@@ -35,11 +45,37 @@ export default function Dashboard({ assets, history, theme }) {
   // Helper for the best asset logo
   const bestAssetLogo = bestAsset ? (bestAsset.image || (bestAsset.symbol ? `https://financialmodelingprep.com/image-stock/${bestAsset.symbol}.png` : null)) : null
 
-  const chartValues = Array.isArray(history) && history.length > 0 ? history.map(item => Number(item.netWorth || 0)) : [0, 0, 0]
+  const [range, setRange] = useState('month')
+
+  const rangeLengths = {
+    day: 7,
+    week: 8,
+    month: 12,
+    year: 12,
+  }
+
+  const chartValues = (() => {
+    const safeHistory = Array.isArray(history) && history.length > 0 ? history : [{ date: new Date().toISOString().slice(0, 10), netWorth: totalNetWorth }]
+    const selectedCount = rangeLengths[range] || 12
+    const sliced = safeHistory.slice(-selectedCount)
+
+    if (sliced.length === 0) return [totalNetWorth]
+    if (sliced.length === 1) return [Number(sliced[0].netWorth || totalNetWorth)]
+
+    const values = sliced.map(item => Number(item.netWorth || 0))
+    const fillCount = selectedCount - values.length
+    if (fillCount > 0) {
+      const lastValue = values[values.length - 1] || totalNetWorth
+      return [...Array(fillCount).fill(lastValue), ...values]
+    }
+
+    return values
+  })()
+
   const chartMin = Math.min(...chartValues)
   const chartMax = Math.max(...chartValues)
   const chartRange = chartMax - chartMin || 1
-  const chartWidth = 640
+  const chartWidth = 850
   const chartHeight = 180
 
   const chartPoints = chartValues.map((value, index) => {
@@ -50,6 +86,8 @@ export default function Dashboard({ assets, history, theme }) {
 
   const [hoveredIndex, setHoveredIndex] = useState(chartPoints.length - 1)
   const activePoint = chartPoints[hoveredIndex] ?? chartPoints[chartPoints.length - 1]
+  const rangeDelta = chartValues.length > 1 ? chartValues[chartValues.length - 1] - chartValues[0] : 0
+  const rangeDeltaPct = chartValues.length > 1 && chartValues[0] !== 0 ? (rangeDelta / chartValues[0]) * 100 : 0
 
   const linePoints = chartPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
   const areaPoints = `${linePoints} L ${chartWidth} ${chartHeight} L 0 ${chartHeight} Z`
@@ -58,19 +96,54 @@ export default function Dashboard({ assets, history, theme }) {
     <div className="space-y-8 max-w-5xl mx-auto py-2">
       
       {/* SECCIÓN PRINCIPAL: Hero */}
-      <div className="space-y-2 border-b border-border pb-8">
-        <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-          Portafolio Total
-        </span>
+      <div className="space-y-3 border-b border-border pb-8">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+            Portafolio Total
+          </span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 px-3 text-xs">Resumen</Button>
+            </PopoverTrigger>
+            <PopoverContent side="bottom" align="end" className="w-72">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">Resumen del portafolio</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <div className="flex justify-between"><span>Capital invertido</span><span className="font-medium text-foreground">${totalInvested.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span></div>
+                  <div className="flex justify-between"><span>Valor actual</span><span className="font-medium text-foreground">${totalNetWorth.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span></div>
+                  <div className="flex justify-between"><span>Ganancia</span><span className={`font-medium ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>{isPositive ? '+' : '-'}${Math.abs(totalProfit).toLocaleString('es-ES', { minimumFractionDigits: 2 })}</span></div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
         <div className="text-5xl font-extrabold tracking-tight font-mono">
           ${totalNetWorth.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </div>
-        
-        <div className="flex items-center gap-2 pt-1 text-sm font-medium">
-          <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${isPositive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-            {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}${Math.abs(totalProfit).toLocaleString('es-ES', { minimumFractionDigits: 2 })} ({profitPercentage.toFixed(2)}%)
-          </span>
-          <span className="text-muted-foreground text-xs">Rendimiento global</span>
+
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${isPositive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+              {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}${Math.abs(totalProfit).toLocaleString('es-ES', { minimumFractionDigits: 2 })} ({profitPercentage.toFixed(2)}%)
+            </span>
+            <span className="text-muted-foreground text-xs">Rendimiento global</span>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-full border border-border bg-card/60 p-1">
+            {RANGE_OPTIONS.map(({ key, label }) => (
+              <Button
+                key={key}
+                type="button"
+                size="sm"
+                variant={range === key ? 'default' : 'ghost'}
+                className={`h-8 rounded-full px-3 text-[10px] font-semibold uppercase tracking-[0.14em] ${range === key ? 'shadow-sm' : 'text-muted-foreground'}`}
+                onClick={() => setRange(key)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -82,21 +155,14 @@ export default function Dashboard({ assets, history, theme }) {
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">Rendimiento</p>
               <CardTitle className="mt-1 text-base">Evolución del patrimonio</CardTitle>
             </div>
-            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${isPositive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-              {isPositive ? '▲' : '▼'} {profitPercentage.toFixed(1)}%
+            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${rangeDelta >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+              {rangeDelta >= 0 ? '▲' : '▼'} {Math.abs(rangeDeltaPct).toFixed(1)}%
             </span>
           </div>
         </CardHeader>
 
         <CardContent className="pt-0">
           <div className="relative">
-            <div className="absolute right-4 top-3 z-10 rounded-xl border border-border bg-background/90 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
-              <div className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Valor</div>
-              <div className="mt-0.5 text-sm font-semibold font-mono text-foreground">
-                ${Number(activePoint.value).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
-
             <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-52 w-full overflow-visible">
               <defs>
                 <linearGradient id="portfolioLineFill" x1="0" y1="0" x2="0" y2="1">
@@ -139,27 +205,38 @@ export default function Dashboard({ assets, history, theme }) {
               <path d={areaPoints} fill="url(#portfolioLineFill)" />
               <path d={linePoints} fill="none" stroke="url(#portfolioLineStroke)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
 
-              {chartPoints.map((point, index) => (
-                <g
-                  key={`${point.x}-${point.y}-${index}`}
-                  onMouseEnter={() => setHoveredIndex(index)}
-                  onMouseLeave={() => setHoveredIndex(chartPoints.length - 1)}
-                  className="cursor-pointer"
-                >
-                  <circle cx={point.x} cy={point.y} r={hoveredIndex === index ? 7 : 5} fill="#ffffff" stroke="#8b5cf6" strokeWidth="2.5" />
-                  <text
-                    x={point.x}
-                    y={point.y - 12}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fontWeight="600"
-                    fill="currentColor"
-                    className="fill-muted-foreground"
-                  >
-                    ${Number(point.value).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
-                  </text>
-                </g>
-              ))}
+              <TooltipProvider delayDuration={100}>
+                {chartPoints.map((point, index) => (
+                  <Tooltip key={`${point.x}-${point.y}-${index}`}>
+                    <TooltipTrigger asChild>
+                      <g
+                        onMouseEnter={() => setHoveredIndex(index)}
+                        onMouseLeave={() => setHoveredIndex(chartPoints.length - 1)}
+                        className="cursor-pointer"
+                      >
+                        <circle cx={point.x} cy={point.y} r={hoveredIndex === index ? 7 : 5} fill="#ffffff" stroke="#8b5cf6" strokeWidth="2.5" />
+                        <text
+                          x={point.x}
+                          y={point.y - 12}
+                          textAnchor="middle"
+                          fontSize="10"
+                          fontWeight="600"
+                          fill="currentColor"
+                          className="fill-muted-foreground"
+                        >
+                          ${Number(point.value).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
+                        </text>
+                      </g>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="font-mono text-xs">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-muted-foreground">Valor</span>
+                        <span>${Number(point.value).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </TooltipProvider>
             </svg>
           </div>
         </CardContent>

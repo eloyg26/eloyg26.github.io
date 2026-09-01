@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import Dashboard from './components/Dashboard'
 import AssetForm from './components/AssetForm'
-import AssetList from './components/AssetList'
 import { ThemeProvider, useTheme } from './components/ThemeProvider'
 
 const defaultAssets = [
@@ -14,10 +13,16 @@ function AppContent({ assets, history, addAsset, updateAsset, removeAsset, reset
   const { theme, setTheme } = useTheme()
 
   return (
-      <main className="container relative min-h-screen pt-12 bg-background text-foreground transition-colors duration-300">
-          <button 
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
-            className="absolute bottom-4 left-4 rounded-md border border-border bg-card text-card-foreground p-2 text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center shadow-sm"
+    <main className="container relative min-h-screen pt-12 bg-background text-foreground transition-colors duration-300">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1">
+            <AssetForm onAdd={addAsset} />
+          </div>
+
+          <button
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            className="rounded-md border border-border bg-card text-card-foreground p-2 text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center shadow-sm"
             aria-label="Alternar tema"
           >
             {theme === 'light' ? (
@@ -26,18 +31,11 @@ function AppContent({ assets, history, addAsset, updateAsset, removeAsset, reset
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
             )}
           </button>
-          
-        <section className="panel">
-          <div className="flex items-center justify-between">
-            <Dashboard assets={assets} history={history} />        
-          </div>
-        </section>
+        </div>
 
-        <section className="panel side">
-          <AssetForm onAdd={addAsset} />
-          <AssetList assets={assets} onUpdate={updateAsset} onDelete={removeAsset} />
-        </section>
-      </main>
+        <Dashboard assets={assets} history={history} />
+      </div>
+    </main>
   )
 }
 
