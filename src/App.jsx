@@ -15,11 +15,6 @@ function AppContent({ assets, history, addAsset, updateAsset, removeAsset, reset
 
   return (
       <main className="container relative min-h-screen pt-12 bg-background text-foreground transition-colors duration-300">
-        <div className="fixed top-4 right-4 z-50 p-2 bg-yellow-50 text-xs rounded border border-yellow-200 max-w-xs overflow-auto">
-          <div className="font-semibold">Debug assets</div>
-          <div>Type: {typeof assets} — Count: {Array.isArray(assets) ? assets.length : 'N/A'}</div>
-          <pre className="text-xs mt-1" style={{maxHeight: 120, overflow: 'auto'}}>{JSON.stringify(assets, null, 2)}</pre>
-        </div>
           <button 
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
             className="absolute bottom-4 left-4 rounded-md border border-border bg-card text-card-foreground p-2 text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center shadow-sm"
@@ -35,9 +30,6 @@ function AppContent({ assets, history, addAsset, updateAsset, removeAsset, reset
         <section className="panel">
           <div className="flex items-center justify-between">
             <Dashboard assets={assets} history={history} />        
-            <div className="ml-4">
-              <button onClick={resetAssets} className="text-xs px-2 py-1 rounded bg-primary/80 text-primary-foreground">Restaurar activos</button>
-            </div>
           </div>
         </section>
 

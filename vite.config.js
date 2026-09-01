@@ -1,8 +1,6 @@
 import { defineConfig } from 'vite'
-// import react from '@vitejs/plugin-react' // Si usas React
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [
-    // react(), // Si usas React
-  ],
+  plugins: [react()],
 })
