@@ -5,8 +5,8 @@ import { ThemeProvider, useTheme } from './components/ThemeProvider'
 
 const defaultAssets = [
   { id: 1, type: 'cash', name: 'Fondo indexado', symbol: 'VOO', quantity: 8, purchasePrice: 420, currentPrice: 458, changePercent: '+1.75%', broker: 'Trade Republic' },
-  { id: 2, type: 'crypto', name: 'Bitcoin', symbol: 'BTC', quantity: 0.45, purchasePrice: 24000, currentPrice: 62800, coinId: 'bitcoin', change24h: '+2.41%', broker: 'Binance' },
-  { id: 3, type: 'stocks', name: 'Apple', symbol: 'AAPL', quantity: 14, purchasePrice: 180, currentPrice: 212, changePercent: '+0.92%', broker: 'Trade Republic' }
+  { id: 2, type: 'crypto', name: 'Bitcoin', symbol: 'BTC', quantity: 0.45, purchasePrice: 24000, currentPrice: 62850, coinId: 'bitcoin', change24h: '+2.41%', broker: 'Binance' },
+  { id: 3, type: 'stocks', name: 'Apple', symbol: 'AAPL', quantity: 14, purchasePrice: 180, currentPrice: 212, changePercent: '+0.92%', broker: 'MyInvestor' }
 ]
 
 function AppContent({ assets, history, addAsset, updateAsset, removeAsset, resetAssets }) {

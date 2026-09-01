@@ -35,9 +35,14 @@ const FALLBACK_SUGGESTIONS = {
   ]
 }
 
+function getDefaultSuggestions(type) {
+  const pool = type === 'crypto' ? FALLBACK_SUGGESTIONS.crypto : FALLBACK_SUGGESTIONS.stocks
+  return pool.slice(0, 6)
+}
+
 function getFallbackSuggestions(term, type) {
   const query = term.trim().toLowerCase()
-  if (!query) return []
+  if (!query) return getDefaultSuggestions(type)
 
   const pool = type === 'crypto' ? FALLBACK_SUGGESTIONS.crypto : FALLBACK_SUGGESTIONS.stocks
 
@@ -98,7 +103,8 @@ export default function AssetForm({ onAdd }) {
   useEffect(() => {
     const term = searchQuery.trim().toLowerCase()
     if (!term || term.length < 2) {
-      setSuggests([])
+      const defaults = getDefaultSuggestions(form.type)
+      setSuggests(defaults)
       setLoading(false)
       setApiError('')
       return
@@ -221,6 +227,37 @@ export default function AssetForm({ onAdd }) {
     } catch (e) { console.error("Error obteniendo precio:", e) }
   }
 
+  function renderSuggestionItem(item, index) {
+    const isCrypto = form.type === 'crypto'
+    const key = isCrypto ? (item.id || `${item.symbol}-${index}`) : (item.symbol || `${item.name}-${index}`)
+
+    if (isCrypto) {
+      return (
+        <li key={key} onClick={() => pickCoin(item)} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent cursor-pointer">
+          {item.thumb && <img src={item.thumb} alt="" className="w-5 h-5 rounded-full" />}
+          <div>
+            <div className="font-medium">{item.name}</div>
+            <div className="text-xs text-muted-foreground">{item.symbol?.toUpperCase()}</div>
+          </div>
+        </li>
+      )
+    }
+
+    return (
+      <li key={key} onClick={() => pickStockOrFund(item)} className="flex items-center justify-between gap-3 px-3 py-2 text-sm hover:bg-accent cursor-pointer">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-muted text-[10px] font-semibold text-muted-foreground uppercase">
+            {(item.symbol || item.name || 'A').slice(0, 2)}
+          </div>
+          <div className="min-w-0">
+            <div className="truncate font-medium">{item.name}</div>
+            <div className="text-xs text-muted-foreground">{item.symbol} {item.region ? `• ${item.region}` : ''}</div>
+          </div>
+        </div>
+      </li>
+    )
+  }
+
   function submit(e) {
     e.preventDefault()
     if (!form.name) return
@@ -269,24 +306,7 @@ export default function AssetForm({ onAdd }) {
 
               {suggests.length > 0 && (
                 <ul className="absolute z-20 w-full mt-1 bg-popover border border-border rounded-xl shadow-xl max-h-52 overflow-auto py-1">
-                  {form.type === 'crypto' ? (
-                    suggests.slice(0, 6).map(c => (
-                      <li key={c.id} onClick={() => pickCoin(c)} className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent cursor-pointer">
-                        {c.thumb && <img src={c.thumb} alt="" className="w-5 h-5 rounded-full" />}
-                        <div>
-                          <div className="font-medium">{c.name}</div>
-                          <div className="text-xs text-muted-foreground">{c.symbol?.toUpperCase()}</div>
-                        </div>
-                      </li>
-                    ))
-                  ) : (
-                    suggests.slice(0, 6).map(c => (
-                      <li key={c.symbol} onClick={() => pickStockOrFund(c)} className="px-3 py-2 text-sm hover:bg-accent cursor-pointer">
-                        <div className="font-medium">{c.name}</div>
-                        <div className="text-xs text-muted-foreground">{c.symbol} {c.region ? `• ${c.region}` : ''}</div>
-                      </li>
-                    ))
-                  )}
+                  {suggests.slice(0, 6).map((item, index) => renderSuggestionItem(item, index))}
                 </ul>
               )}
             </div>
