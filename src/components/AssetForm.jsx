@@ -68,16 +68,22 @@ export default function AssetForm({ onAdd }) {
       } 
       else if (form.type === 'cash' || form.type === 'stocks') {
         try {
-          // Buscador público de Twelve Data (No gasta créditos)
-          const res = await fetch(`https://api.twelvedata.com/symbol_search?symbol=${encodeURIComponent(term)}`)
+          const key = import.meta.env.VITE_FINNHUB_KEY
+          if (!key) {
+            if (mounted.current) setApiError('Falta VITE_FINNHUB_KEY en el .env')
+            setSuggests([])
+            return
+          }
+
+          const res = await fetch(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(term)}&token=${key}`)
           const data = await res.json()
 
-          if (data.data && data.data.length > 0) {
+          if (data.result && data.result.length > 0) {
             if (mounted.current) {
-              setSuggests(data.data.map(item => ({
+              setSuggests(data.result.map(item => ({
                 symbol: item.symbol,
-                name: item.instrument_name,
-                region: item.exchange
+                name: item.description,
+                region: item.symbol
               })));
             }
           } else {
@@ -85,7 +91,7 @@ export default function AssetForm({ onAdd }) {
             setSuggests([]);
           }
         } catch (e) {
-          if (mounted.current) setApiError('Error de red al conectar con Twelve Data.')
+          if (mounted.current) setApiError('Error de red al conectar con Finnhub.')
         } finally {
           if (mounted.current) setLoading(false)
         }
@@ -114,21 +120,26 @@ export default function AssetForm({ onAdd }) {
     setForm(f => ({ ...f, name, symbol }))
     setSearchQuery('')
     setSuggests([])
-    
+
     try {
-      const key = import.meta.env.VITE_TWELVEDATA_KEY
+      const key = import.meta.env.VITE_FINNHUB_KEY
       if (!key) {
-        setApiError('Falta tu VITE_TWELVEDATA_KEY en el .env');
+        setApiError('Falta tu VITE_FINNHUB_KEY en el .env');
         return;
       }
-      
-      const res = await fetch(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${key}`)
+
+      const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`)
+      if (!res.ok) {
+        setApiError('Error al obtener precio desde Finnhub')
+        return
+      }
       const data = await res.json()
 
-      if (data && data.close) {
+      if (data && (data.c || data.c === 0)) {
         setForm(f => ({
           ...f,
-          currentPrice: Number(data.close || 0)
+          currentPrice: Number(data.c || 0),
+          changePercent: `${data.dp && data.dp > 0 ? '+' : ''}${Number(data.dp || 0).toFixed(2)}%`
         }))
       }
     } catch (e) { console.error("Error obteniendo precio:", e) }

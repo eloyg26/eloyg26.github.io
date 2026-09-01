@@ -10,11 +10,16 @@ const defaultAssets = [
   { id: 3, type: 'stocks', name: 'Apple', symbol: 'AAPL', quantity: 14, purchasePrice: 180, currentPrice: 212, changePercent: '+0.92%', broker: 'Trade Republic' }
 ]
 
-function AppContent({ assets, history, addAsset, updateAsset, removeAsset }) {
+function AppContent({ assets, history, addAsset, updateAsset, removeAsset, resetAssets }) {
   const { theme, setTheme } = useTheme()
 
   return (
       <main className="container relative min-h-screen pt-12 bg-background text-foreground transition-colors duration-300">
+        <div className="fixed top-4 right-4 z-50 p-2 bg-yellow-50 text-xs rounded border border-yellow-200 max-w-xs overflow-auto">
+          <div className="font-semibold">Debug assets</div>
+          <div>Type: {typeof assets} — Count: {Array.isArray(assets) ? assets.length : 'N/A'}</div>
+          <pre className="text-xs mt-1" style={{maxHeight: 120, overflow: 'auto'}}>{JSON.stringify(assets, null, 2)}</pre>
+        </div>
           <button 
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} 
             className="absolute bottom-4 left-4 rounded-md border border-border bg-card text-card-foreground p-2 text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center shadow-sm"
@@ -28,7 +33,12 @@ function AppContent({ assets, history, addAsset, updateAsset, removeAsset }) {
           </button>
           
         <section className="panel">
-          <Dashboard assets={assets} history={history} />        
+          <div className="flex items-center justify-between">
+            <Dashboard assets={assets} history={history} />        
+            <div className="ml-4">
+              <button onClick={resetAssets} className="text-xs px-2 py-1 rounded bg-primary/80 text-primary-foreground">Restaurar activos</button>
+            </div>
+          </div>
         </section>
 
         <section className="panel side">
@@ -71,49 +81,49 @@ export default function App() {
     async function fetchStocks() {
       const currentAssets = assetsRef.current;
       const stockAssets = currentAssets.filter(a => (a.type === 'stocks' || a.type === 'cash') && a.symbol);
-      
+
       if (stockAssets.length === 0) return;
 
-      const lastFetch = localStorage.getItem('equality_td_last_fetch');
+      const lastFetch = localStorage.getItem('equality_fh_last_fetch');
       const now = Date.now();
       if (lastFetch && now - parseInt(lastFetch) < 60000) return;
 
-      const TD_KEY = import.meta.env.VITE_TWELVEDATA_KEY;
-      if (!TD_KEY) return;
+      const FH_KEY = import.meta.env.VITE_FINNHUB_KEY;
+      if (!FH_KEY) {
+        console.warn('VITE_FINNHUB_KEY not set — skipping price update');
+        return;
+      }
 
       let nextAssets = [...currentAssets];
       let hasChanges = false;
-      const symbols = stockAssets.map(a => a.symbol).join(',');
+      const symbols = stockAssets.map(a => a.symbol);
 
       try {
-        const res = await fetch(`https://api.twelvedata.com/quote?symbol=${symbols}&apikey=${TD_KEY}`);
-        const data = await res.json();
-
-        if (data.status === "error") return;
-
-        const isMultiple = stockAssets.length > 1;
+        const responses = await Promise.all(symbols.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(s)}&token=${FH_KEY}`)));
+        const datas = await Promise.all(responses.map(r => r.ok ? r.json() : null));
 
         nextAssets = nextAssets.map(a => {
-          const quote = isMultiple ? data[a.symbol] : (data.symbol === a.symbol ? data : null);
-          
-          if (quote && quote.close) {
+          const idx = symbols.indexOf(a.symbol);
+          const data = datas[idx];
+          if (data && (data.c || data.c === 0)) {
             hasChanges = true;
-            const change = parseFloat(quote.percent_change);
-            return { 
-              ...a, 
-              currentPrice: parseFloat(quote.close), 
-              changePercent: `${change > 0 ? '+' : ''}${change.toFixed(2)}%` 
+            const dp = typeof data.dp === 'number' ? data.dp : 0;
+            return {
+              ...a,
+              currentPrice: Number(data.c),
+              changePercent: `${dp > 0 ? '+' : ''}${Number(dp).toFixed(2)}%`
             };
           }
           return a;
         });
 
-        localStorage.setItem('equality_td_last_fetch', now.toString());
+        if (hasChanges) {
+          localStorage.setItem('equality_fh_last_fetch', now.toString());
+          setAssets(nextAssets);
+        }
       } catch (e) {
-        console.error("Error conectando con Twelve Data:", e);
+        console.error('Error conectando con Finnhub:', e);
       }
-
-      if (hasChanges) setAssets(nextAssets);
     }
 
     fetchStocks();
@@ -121,6 +131,12 @@ export default function App() {
 
   function computeNetWorth(list) {
     return list.reduce((s,a) => s + (Number(a.currentPrice || 0) * Number(a.quantity || 0)), 0)
+  }
+
+  function resetAssets() {
+    setAssets(defaultAssets)
+    localStorage.setItem('equality_assets', JSON.stringify(defaultAssets))
+    pushSnapshot(defaultAssets)
   }
 
   function addAsset(asset) {
@@ -148,6 +164,10 @@ export default function App() {
     setHistory(h => [...h, { date: now, netWorth: net }].slice(-60))
   }
 
+  useEffect(() => {
+    console.debug('App assets updated:', assets.length, assets)
+  }, [assets])
+
   return (
     <ThemeProvider defaultTheme="light" storageKey="privallet_theme">
       <AppContent 
@@ -156,6 +176,7 @@ export default function App() {
         addAsset={addAsset} 
         updateAsset={updateAsset} 
         removeAsset={removeAsset} 
+        resetAssets={resetAssets}
       />
     </ThemeProvider>
   )
