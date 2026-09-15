@@ -118,7 +118,7 @@ export default function AssetForm({ onAdd }) {
 
       if (form.type === 'crypto') {
         try {
-          const res = await fetchWithTimeout(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(term)}`)
+          const res = await fetchWithTimeout(`/api/coingecko/search?query=${encodeURIComponent(term)}`)
           const data = await res.json()
           const coins = Array.isArray(data.coins) ? data.coins : []
 
@@ -147,7 +147,7 @@ export default function AssetForm({ onAdd }) {
             return
           }
 
-          const res = await fetchWithTimeout(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(term)}&token=${key}`)
+          const res = await fetchWithTimeout(`/api/finnhub/search?q=${encodeURIComponent(term)}&token=${key}`)
           if (!res.ok) {
             throw new Error('Finnhub no respondió correctamente')
           }
@@ -188,7 +188,7 @@ export default function AssetForm({ onAdd }) {
     setSearchQuery('')
     setSuggests([])
     try {
-      const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coin.id}&order=market_cap_desc&per_page=1&page=1&sparkline=false`)
+      const res = await fetch(`/api/coingecko/coins/markets?vs_currency=usd&ids=${coin.id}&order=market_cap_desc&per_page=1&page=1&sparkline=false`)
       const arr = await res.json()
       if (arr && arr[0]) {
         setForm(f => ({ ...f, currentPrice: arr[0].current_price || 0, image: arr[0].image }))
@@ -210,7 +210,7 @@ export default function AssetForm({ onAdd }) {
         return;
       }
 
-      const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`)
+      const res = await fetch(`/api/finnhub/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`)
       if (!res.ok) {
         setApiError('Error al obtener precio desde Finnhub')
         return

@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import { getBrokerIcon } from '../utils/brokers'
+import NewsAndIndices from './NewsAndIndices'
 
 const RANGE_OPTIONS = [
   { key: 'day', label: 'Día' },
@@ -541,6 +542,8 @@ export default function Dashboard({ assets, history, theme }) {
           </CardContent>
         </Card>
       </div>
+
+      {/*<NewsAndIndices/>*/}
 
       {/* LISTA DE POSICIONES */}
       <div className="space-y-4 pt-4">

@@ -89,7 +89,7 @@ export default function App() {
       const symbols = stockAssets.map(a => a.symbol);
 
       try {
-        const responses = await Promise.all(symbols.map(s => fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(s)}&token=${FH_KEY}`)));
+        const responses = await Promise.all(symbols.map(s => fetch(`/api/finnhub/quote?symbol=${encodeURIComponent(s)}&token=${FH_KEY}`)));
         const datas = await Promise.all(responses.map(r => r.ok ? r.json() : null));
 
         nextAssets = nextAssets.map(a => {
